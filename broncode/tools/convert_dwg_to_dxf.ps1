@@ -62,7 +62,7 @@ Write-Host "Version       :" $OutputVersion
 Write-Host "Recursive     :" $recurseFlag
 Write-Host "Audit         :" $auditFlag
 
-# ODA File Converter CLI syntax:
+# ODA File Converter CLI-syntax:
 #   ODAFileConverter <sourceDir> <targetDir> <version> <type> <recursive> <audit> <filter>
 $argsList = @(
     $ctx.SourceDir,
@@ -74,8 +74,8 @@ $argsList = @(
     $ctx.Filter
 )
 
-# Use PowerShell's call operator so arguments with spaces are passed correctly as separate args.
-# ODA File Converter may return control before all files are written, so we poll the output dir below.
+# Gebruik PowerShell's call-operator zodat argumenten met spaties correct als losse args worden doorgegeven.
+# ODA File Converter kan terugkeren voordat alle bestanden zijn weggeschreven, daarom pollen we hieronder de outputmap.
 & $OdaExe @argsList
 $exit = $LASTEXITCODE
 

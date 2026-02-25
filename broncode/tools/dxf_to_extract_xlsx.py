@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Prototype DXF -> extract .xlsx generator (schema-compatible enough for P22_0002_Main.java tests).
+Prototype DXF -> extract .xlsx generator (voldoende schema-compatibel voor P22_0002_Main.java-tests).
 
-This does NOT fully replicate Mosaic DataExtract, but it produces an Excel file with the
-column headers expected by the Java post-processing step.
+Dit repliceert Mosaic DataExtract NIET volledig, maar maakt wel een Excel-bestand met de
+kolomkoppen die de Java-naverwerkingsstap verwacht.
 
-Dependencies:
+Benodigdheden:
   pip install ezdxf openpyxl
 """
 
@@ -194,12 +194,12 @@ def insert_row(source: Path, entity) -> dict:
         if tag.upper() in attrs:
             row[col] = attrs[tag.upper()]
 
-    # If these block attributes exist under simpler tags, map them too.
+    # Als deze block-attributen onder eenvoudigere tags voorkomen, map ze ook.
     for fallback in ("EXTRAINFO1", "EXTRAINFO_1"):
         if not row["EXTRAINFO(1)"] and fallback in attrs:
             row["EXTRAINFO(1)"] = attrs[fallback]
 
-    # Put something in "Contents" for visibility during prototype testing.
+    # Zet iets in "Contents" voor zichtbaarheid tijdens prototypetests.
     if attrs:
         row["Contents"] = " | ".join([f"{k}={v}" for k, v in sorted(attrs.items())])
 
@@ -244,7 +244,7 @@ def entity_rows(source: Path) -> Iterable[dict]:
                 yield insert_row(source, entity)
 
             elif dxftype == "ATTRIB":
-                # Optional: expose as text-like row so Java can still "see" attribute text if needed.
+                # Optioneel: toon als tekstachtige rij zodat Java attribuuttekst nog kan "zien" indien nodig.
                 row = base_row(source, "Text", layer)
                 ins = entity.dxf.insert
                 set_pos(row, ins.x, ins.y, getattr(ins, "z", 0))
@@ -279,7 +279,7 @@ def entity_rows(source: Path) -> Iterable[dict]:
                 yield row
 
         except Exception:
-            # Skip malformed entities, keep file processing going.
+            # Sla foutieve entities over zodat de bestandsverwerking door kan gaan.
             continue
 
 
@@ -305,7 +305,7 @@ def iter_input_files(input_path: Path, recursive: bool) -> List[Path]:
 
 
 def has_nbd_signals(rows: List[dict]) -> bool:
-    """Heuristic for NBD sign-spec drawings: look for known block/entity names or mapped attrs."""
+    """Heuristiek voor NBD-bordspecificatie-tekeningen: zoek bekende block/entity-namen of gemapte attributen."""
     signal_names = {
         "BORDDATA",
         "BORDDATA1",

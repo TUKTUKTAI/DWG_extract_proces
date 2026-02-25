@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Merge separate 'Extraheren resultaat ...xlsx' files into one workbook.
+Voeg losse 'Extraheren resultaat ...xlsx'-bestanden samen tot één workbook.
 
-- Appends rows per sheet
-- Skips header row for all files after the first one
-- Continues on file errors and logs them
+- Voegt rijen toe per sheet
+- Slaat de headerregel over voor alle bestanden na het eerste bestand
+- Gaat door bij bestandsfouten en logt deze
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def build_master_from_first(first_file: Path) -> Workbook:
     src_wb = load_workbook(first_file)
     master = Workbook()
 
-    # Remove default sheet and recreate all source sheets in same order.
+    # Verwijder de standaardsheet en maak alle bron-sheets opnieuw in dezelfde volgorde.
     if master.active:
         master.remove(master.active)
 
@@ -97,7 +97,7 @@ def append_workbook(master: Workbook, source_file: Path, skip_header: bool = Tru
     try:
         for src_ws in src_wb.worksheets:
             dst_ws = ensure_sheet(master, src_ws.title)
-            start_row_idx = 1 if skip_header else 0  # 0-based enumerate over rows
+            start_row_idx = 1 if skip_header else 0  # 0-based enumerate over rijen
             for idx, row in enumerate(src_ws.iter_rows(values_only=True)):
                 if idx < start_row_idx:
                     continue
@@ -116,7 +116,7 @@ def reorder_sheets(master: Workbook) -> None:
     for ws in master.worksheets:
         if ws.title not in DEFAULT_SHEET_ORDER:
             ordered.append(ws)
-    master._sheets = ordered  # acceptable internal use for ordering
+    master._sheets = ordered  # acceptabel intern gebruik voor sortering
 
 
 def main() -> int:
