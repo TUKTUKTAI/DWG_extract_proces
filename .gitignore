@@ -1,33 +1,33 @@
-# Local bundled JDK (do not commit)
+# Lokale meegeleverde JDK (niet committen)
 jdk-13.0.2/
 
-# Python cache
+# Python-cache
 __pycache__/
 *.pyc
 
-# Java build output
+# Java build-output
 *.class
 
 # VS Code / IDE
 .vscode/
 .idea/
 
-# Logs
+# Logbestanden
 *.log
 
-# Keep folders, ignore contents
+# Mappen behouden, inhoud negeren
 dwgs/*
 DXF/*
 Bron/*
 Doel/*
 Eindresultaat/*
 
-# Keep folder markers
+# Map-markeringen behouden
 !dwgs/.gitkeep
 !DXF/.gitkeep
 !Bron/.gitkeep
 !Doel/.gitkeep
 !Eindresultaat/.gitkeep
 
-# Optional: ignore local Apache POI jars (uncomment if you do NOT want libs in GitHub)
+# Optioneel: lokale Apache POI-jars negeren (uit comment halen als je libs NIET in GitHub wilt)
 # broncode/lib/
