@@ -28,13 +28,31 @@ De scripts gebruiken standaard `pipeline_defaults.ps1` en proberen daar automati
 
 Dan hoef je niets aan te passen.
 
+### ODA-pad snel vinden (Windows)
+
+Als je het exacte pad van `ODAFileConverter.exe` nodig hebt, dit werkt meestal het snelst:
+
+Alternatief via PowerShell (zoekt in de standaard ODA-map):
+
+```powershell
+Get-ChildItem "C:\Program Files\ODA" -Recurse -Filter ODAFileConverter.exe -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty FullName
+```
+
 ### Als ODA niet gevonden wordt
 
 Je hebt dan 2 opties:
 
 1. **Eenmalig aanpassen in code (aanbevolen voor vaste setup)**
    - open `.\broncode\tools\pipeline_defaults.ps1`
-   - voeg het juiste ODA-pad toe aan de lijst met `odaCandidates`
+   - zoek de lijst `odaCandidates` (bovenin het bestand)
+   - voeg jouw volledige pad toe, bijvoorbeeld:
+
+```powershell
+"D:\Tools\ODA\ODAFileConverter 26.12.0\ODAFileConverter.exe",
+```
+
+   - bij voorkeur bovenaan de lijst zetten, zodat die eerst geprobeerd wordt
 
 2. **Pad meegeven via parameter (handig voor testen)**
 

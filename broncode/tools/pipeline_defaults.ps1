@@ -15,6 +15,7 @@ function Get-NbdPipelineDefaults {
         "C:\Program Files\ODA\ODAFileConverter 26.12.0\ODAFileConverter.exe",
         "C:\Program Files\ODA\ODAFileConverter\ODAFileConverter.exe",
         "C:\Program Files (x86)\ODA\ODAFileConverter\ODAFileConverter.exe"
+        "C:\Program Files\ODA\ODAFileConverter 25.12.0\ODAFileConverter.exe"
     )
     $odaExe = $null
     foreach ($candidate in $odaCandidates) {
