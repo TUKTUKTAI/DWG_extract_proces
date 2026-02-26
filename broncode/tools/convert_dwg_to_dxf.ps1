@@ -42,6 +42,29 @@ function Resolve-InputContext {
     }
 }
 
+function Get-DxfOutputSnapshot {
+    param([string]$PathValue)
+
+    $files = Get-ChildItem -Path $PathValue -Recurse -Filter *.dxf -File -ErrorAction SilentlyContinue
+    $count = @($files).Count
+    $sumLength = 0L
+    $latestTicks = 0L
+
+    foreach ($f in $files) {
+        $sumLength += [int64]$f.Length
+        $ticks = $f.LastWriteTimeUtc.Ticks
+        if ($ticks -gt $latestTicks) {
+            $latestTicks = $ticks
+        }
+    }
+
+    return [pscustomobject]@{
+        Count = $count
+        SumLength = $sumLength
+        LatestTicks = $latestTicks
+    }
+}
+
 if (!(Test-Path $DwgInput)) {
     throw "Input path not found: $DwgInput"
 }
@@ -76,14 +99,39 @@ $argsList = @(
 
 # Gebruik PowerShell's call-operator zodat argumenten met spaties correct als losse args worden doorgegeven.
 # ODA File Converter kan terugkeren voordat alle bestanden zijn weggeschreven, daarom pollen we hieronder de outputmap.
+$expectedDwgCount = (Get-ChildItem -Path $ctx.SourceDir -Recurse:$Recursive -Filter $ctx.Filter -File -ErrorAction SilentlyContinue | Measure-Object).Count
+Write-Host "Expected DWGs :" $expectedDwgCount
+
 & $OdaExe @argsList
 $exit = $LASTEXITCODE
 
 $dxfCount = 0
+$stablePolls = 0
+$requiredStablePolls = 4   # 4 * 500ms = ~2s without changes
+$prevSnapshot = $null
 $deadline = (Get-Date).AddSeconds([Math]::Max(0, $WaitTimeoutSeconds))
 do {
-    $dxfCount = (Get-ChildItem -Path $DxfOutput -Recurse -Filter *.dxf -ErrorAction SilentlyContinue | Measure-Object).Count
-    if ($dxfCount -gt 0) { break }
+    $snapshot = Get-DxfOutputSnapshot -PathValue $DxfOutput
+    $dxfCount = [int]$snapshot.Count
+
+    if ($dxfCount -gt 0) {
+        if ($null -ne $prevSnapshot -and
+            $snapshot.Count -eq $prevSnapshot.Count -and
+            $snapshot.SumLength -eq $prevSnapshot.SumLength -and
+            $snapshot.LatestTicks -eq $prevSnapshot.LatestTicks) {
+            $stablePolls++
+        }
+        else {
+            $stablePolls = 0
+        }
+
+        $enoughFiles = ($expectedDwgCount -le 0) -or ($dxfCount -ge $expectedDwgCount)
+        if ($enoughFiles -and $stablePolls -ge $requiredStablePolls) {
+            break
+        }
+    }
+
+    $prevSnapshot = $snapshot
     Start-Sleep -Milliseconds 500
 } while ((Get-Date) -lt $deadline)
 
@@ -93,6 +141,10 @@ if ($null -ne $exit -and $exit -ne 0 -and $dxfCount -eq 0) {
 
 if ($dxfCount -eq 0) {
     throw "ODAFileConverter finished but no DXF files were created within $WaitTimeoutSeconds seconds. Check source files and ODA settings/version arguments."
+}
+
+if ($expectedDwgCount -gt 0 -and $dxfCount -lt $expectedDwgCount) {
+    Write-Warning "Fewer DXF files found than expected DWGs ($dxfCount/$expectedDwgCount) after waiting $WaitTimeoutSeconds seconds."
 }
 
 Write-Host "Done. ODA exit code:" $exit
