@@ -176,6 +176,8 @@ Na stap 3:
   - `.\Doel\dxf_extract_errors.csv`
 - Java naverwerking fouten:
   - `.\Doel\errors.csv`
+- Centrale lijst niet verwerkt (alle stappen, voor opvolging):
+  - `.\Doel\niet_verwerkt.csv`
 - Merge fouten:
   - `.\Eindresultaat\merge_errors.csv`
 
@@ -185,6 +187,7 @@ Opmerking:
 - ODA batch-conversie kan naast `.dxf` ook `.err` bestanden in `.\DXF` aanmaken (bij problematische input).
 - Dat verklaart waarom het totaal aantal bestanden in `.\DXF` soms hoger is dan het aantal `.dwg` bestanden.
 - Deze `.err` bestanden worden nu expliciet gemeld en gelogd.
+- `niet_verwerkt.csv` is bedoeld als simpele controlelijst met bestand/objectnummer + reden over de hele pipeline.
 
 ## Opmerking over validatie
 

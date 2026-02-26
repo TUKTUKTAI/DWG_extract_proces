@@ -14,6 +14,7 @@ $ErrorActionPreference = "Stop"
 $swTotal = [System.Diagnostics.Stopwatch]::StartNew()
 . (Join-Path $PSScriptRoot "pipeline_defaults.ps1")
 $cfg = Get-NbdPipelineDefaults -ProjectRoot $ProjectRoot
+$nietVerwerktCsv = Join-Path $cfg.DoelOutput "niet_verwerkt.csv"
 
 if ([string]::IsNullOrWhiteSpace($DwgInput)) { $DwgInput = $cfg.DwgInput }
 if ([string]::IsNullOrWhiteSpace($DxfOutput)) { $DxfOutput = $cfg.DxfOutput }
@@ -49,6 +50,31 @@ function Append-ErrorLog {
         "timestamp;dwg;error" | Out-File -FilePath $CsvPath -Encoding utf8
     }
     $line = "{0};{1};{2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), ($DwgFile -replace ";", ","), ($Message -replace "[\r\n;]", " ")
+    $line | Out-File -FilePath $CsvPath -Append -Encoding utf8
+}
+
+function Get-ObjectNummerFromFileName {
+    param([string]$FileName)
+    if ([string]::IsNullOrWhiteSpace($FileName)) { return "" }
+    $stem = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+    return ($stem -replace '([A-Za-z]+)$', '')
+}
+
+function Append-NietVerwerkt {
+    param([string]$CsvPath, [string]$Type, [string]$Bestand, [string]$ObjectNummer, [string]$Reden)
+    if ([string]::IsNullOrWhiteSpace($CsvPath)) { return }
+    $dir = Split-Path -Parent $CsvPath
+    if ($dir) { Ensure-Dir $dir }
+    if (!(Test-Path $CsvPath)) {
+        "tijd;type;bestand;object_key;object_nummer;reden" | Out-File -FilePath $CsvPath -Encoding utf8
+    }
+    $line = "{0};{1};{2};{3};{4};{5}" -f `
+        (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), `
+        (($Type) -replace ';', ','), `
+        (($Bestand) -replace ';', ','), `
+        "", `
+        (($ObjectNummer) -replace ';', ','), `
+        (($Reden) -replace "[\r\n;]", " ")
     $line | Out-File -FilePath $CsvPath -Append -Encoding utf8
 }
 
@@ -124,6 +150,7 @@ for ($i = 0; $i -lt $dwgFiles.Count; $i++) {
         $msg = $_.Exception.Message
         Write-Host "  FAIL: $msg" -ForegroundColor Red
         Append-ErrorLog -CsvPath $ErrorLog -DwgFile $dwg.FullName -Message $msg
+        Append-NietVerwerkt -CsvPath $nietVerwerktCsv -Type "oda_per_file" -Bestand $dwg.FullName -ObjectNummer (Get-ObjectNummerFromFileName $dwg.Name) -Reden $msg
         continue
     }
 }

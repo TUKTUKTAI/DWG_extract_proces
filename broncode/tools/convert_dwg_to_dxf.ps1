@@ -15,6 +15,7 @@ $swTotal = [System.Diagnostics.Stopwatch]::StartNew()
 . (Join-Path $PSScriptRoot "pipeline_defaults.ps1")
 $cfg = Get-NbdPipelineDefaults -ProjectRoot $ProjectRoot
 $odaBatchErrorLog = Join-Path $cfg.DoelOutput "oda_batch_errors.csv"
+$nietVerwerktCsv = Join-Path $cfg.DoelOutput "niet_verwerkt.csv"
 
 if ([string]::IsNullOrWhiteSpace($DwgInput)) { $DwgInput = $cfg.DwgInput }
 if ([string]::IsNullOrWhiteSpace($DxfOutput)) { $DxfOutput = $cfg.DxfOutput }
@@ -134,6 +135,38 @@ function Write-OdaBatchErrorLog {
     }
 }
 
+function Get-ObjectNummerFromStem {
+    param([string]$Stem)
+    if ([string]::IsNullOrWhiteSpace($Stem)) { return "" }
+    return ($Stem -replace '([A-Za-z]+)$', '')
+}
+
+function Append-NietVerwerktCsv {
+    param(
+        [string]$CsvPath,
+        [string]$Type,
+        [string]$Bestand,
+        [string]$ObjectNummer,
+        [string]$Reden
+    )
+
+    $dir = Split-Path -Parent $CsvPath
+    if ($dir -and !(Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir | Out-Null
+    }
+    if (!(Test-Path $CsvPath)) {
+        "tijd;type;bestand;object_key;object_nummer;reden" | Out-File -FilePath $CsvPath -Encoding utf8
+    }
+    $line = "{0};{1};{2};{3};{4};{5}" -f `
+        (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), `
+        (($Type) -replace ';', ','), `
+        (($Bestand) -replace ';', ','), `
+        "", `
+        (($ObjectNummer) -replace ';', ','), `
+        (($Reden) -replace "[\r\n;]", " ")
+    Add-Content -Path $CsvPath -Value $line -Encoding utf8
+}
+
 if (!(Test-Path $DwgInput)) {
     throw "Input path not found: $DwgInput"
 }
@@ -247,6 +280,15 @@ $totalErrFiles = (Get-OdaErrFiles -PathValue $DxfOutput).Count
 if ($errFilesThisRun.Count -gt 0) {
     Write-Warning "ODA produced $($errFilesThisRun.Count) .err file(s) in this run. See $odaBatchErrorLog"
     Write-OdaBatchErrorLog -CsvPath $odaBatchErrorLog -ErrFiles $errFilesThisRun
+    foreach ($errFile in $errFilesThisRun) {
+        $related = if ($errFile.Name.ToLower().EndsWith(".dxf.err")) {
+            Join-Path $errFile.DirectoryName ($errFile.Name.Substring(0, $errFile.Name.Length - 4))
+        } else {
+            $errFile.FullName
+        }
+        $stem = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetFileNameWithoutExtension($errFile.Name))
+        Append-NietVerwerktCsv -CsvPath $nietVerwerktCsv -Type "oda_batch_err" -Bestand $related -ObjectNummer (Get-ObjectNummerFromStem $stem) -Reden ("ODA .err file: " + $errFile.Name)
+    }
 }
 
 Write-Host "Done. ODA exit code:" $exit

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
@@ -350,6 +351,28 @@ def append_error_log(error_log: Path, row: ErrorLogRow) -> None:
         writer.writerow([row.timestamp, row.source, row.error])
 
 
+def derive_object_nummer_from_stem(stem: str) -> str:
+    m = re.match(r"^(.+?)([A-Za-z]+)$", stem or "")
+    return m.group(1) if m else (stem or "")
+
+
+def append_niet_verwerkt_csv(csv_path: Path, *, type_value: str, source: str, object_nummer: str, reason: str) -> None:
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    write_header = not csv_path.exists()
+    with csv_path.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter=";")
+        if write_header:
+            writer.writerow(["tijd", "type", "bestand", "object_key", "object_nummer", "reden"])
+        writer.writerow([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            type_value,
+            source,
+            "",
+            object_nummer,
+            reason,
+        ])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert DXF files to DataExtract-like .xlsx files.")
     parser.add_argument("--input", required=True, help="DXF file or folder")
@@ -377,6 +400,11 @@ def main() -> int:
         return 1
 
     ok = 0
+    niet_verwerkt_csv = None
+    if args.error_log:
+        niet_verwerkt_csv = Path(args.error_log).with_name("niet_verwerkt.csv")
+    else:
+        niet_verwerkt_csv = output_dir.parent / "Doel" / "niet_verwerkt.csv"
     for dxf_file in files:
         try:
             out_path = output_dir / f"{dxf_file.stem}.xlsx"
@@ -398,6 +426,14 @@ def main() -> int:
                         source=str(dxf_file),
                         error=f"{exc.__class__.__name__}: {exc}",
                     ),
+                )
+            if niet_verwerkt_csv:
+                append_niet_verwerkt_csv(
+                    niet_verwerkt_csv,
+                    type_value="dxf_extract",
+                    source=str(dxf_file),
+                    object_nummer=derive_object_nummer_from_stem(dxf_file.stem),
+                    reason=f"{exc.__class__.__name__}: {exc}",
                 )
 
     print(f"Done. {ok}/{len(files)} DXF files converted.")

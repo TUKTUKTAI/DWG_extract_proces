@@ -82,6 +82,7 @@ public class P22_0002_Main {
 			} catch (Exception e) {
 				System.out.println("Fout bij " + inputBestand.getName() + ": " + e.getMessage());
 				logError(inputBestand, e);
+				logNietVerwerkt(inputBestand, null, null, "extract", e);
 			} finally {
 				inputBestandenVoorRun = null;
 			}
@@ -232,15 +233,65 @@ public class P22_0002_Main {
 	}
 
 	private static void logError(File inputBestand, String objectKey, String objectNummer, Exception e) {
-		String melding = e == null ? "" : (e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()));
-		if (e != null && e.getCause() != null && e.getCause().getMessage() != null) {
-			melding = melding + " | cause=" + e.getCause().getClass().getSimpleName() + ": " + e.getCause().getMessage();
-		}
+		String melding = buildThrowableMessage(e);
 		logCsvMelding(inputBestand, objectKey, objectNummer, melding);
 	}
 
 	private static void logWarning(File inputBestand, String objectKey, String objectNummer, String melding) {
 		logCsvMelding(inputBestand, objectKey, objectNummer, "WARNING: " + String.valueOf(melding));
+	}
+
+	private static void logNietVerwerkt(File inputBestand, String objectKey, String objectNummer, String type, Throwable e) {
+		try {
+			File doelMap = new File("Doel");
+			if (doelMap.exists() == false) {
+				doelMap.mkdirs();
+			}
+			Path csv = Paths.get(doelMap.getPath(), "niet_verwerkt.csv");
+			if (Files.exists(csv) == false) {
+				String header = "tijd;type;bestand;object_key;object_nummer;reden" + System.lineSeparator();
+				Files.write(csv, header.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+			}
+
+			String tijd = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+			String pad = inputBestand == null ? "" : inputBestand.getPath();
+			String objKey = objectKey == null ? "" : objectKey;
+			String objNr = objectNummer == null ? "" : objectNummer;
+			String soort = (type == null || type.isBlank()) ? ((objKey.isBlank() && objNr.isBlank()) ? "extract" : "object") : type;
+			String reden = buildThrowableMessage(e);
+
+			String regel = sanitizeCsvField(tijd) + ";" + sanitizeCsvField(soort) + ";" + sanitizeCsvField(pad) + ";"
+					+ sanitizeCsvField(objKey) + ";" + sanitizeCsvField(objNr) + ";" + sanitizeCsvField(reden)
+					+ System.lineSeparator();
+			Files.write(csv, regel.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+		} catch (IOException io) {
+			System.out.println("Kan niet_verwerkt.csv niet schrijven: " + io.getMessage());
+		}
+	}
+
+	private static String buildThrowableMessage(Throwable e) {
+		if (e == null) {
+			return "";
+		}
+		StringBuilder sb = new StringBuilder();
+		Throwable cur = e;
+		int depth = 0;
+		while (cur != null && depth < 6) {
+			if (depth > 0) {
+				sb.append(" | cause").append(depth).append("=");
+			}
+			sb.append(cur.getClass().getSimpleName()).append(": ").append(String.valueOf(cur.getMessage()));
+			cur = cur.getCause();
+			depth++;
+		}
+		return sb.toString();
+	}
+
+	private static String sanitizeCsvField(String value) {
+		if (value == null) {
+			return "";
+		}
+		return value.replace("\r", " ").replace("\n", " ").replace(";", ",");
 	}
 
 	private static void logCsvMelding(File inputBestand, String objectKey, String objectNummer, String melding) {
@@ -260,11 +311,11 @@ public class P22_0002_Main {
 			String objKey = objectKey == null ? "" : objectKey;
 			String objNr = objectNummer == null ? "" : objectNummer;
 			melding = melding == null ? "" : melding;
-			melding = melding.replace("\r", " ").replace("\n", " ").replace(";", ",");
-			objKey = objKey.replace("\r", " ").replace("\n", " ").replace(";", ",");
-			objNr = objNr.replace("\r", " ").replace("\n", " ").replace(";", ",");
+			melding = sanitizeCsvField(melding);
+			objKey = sanitizeCsvField(objKey);
+			objNr = sanitizeCsvField(objNr);
 
-			String regel = tijd + ";" + pad.replace(";", ",") + ";" + objKey + ";" + objNr + ";" + melding
+			String regel = sanitizeCsvField(tijd) + ";" + sanitizeCsvField(pad) + ";" + objKey + ";" + objNr + ";" + melding
 					+ System.lineSeparator();
 			Files.write(errorBestand, regel.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE,
 					StandardOpenOption.APPEND);
@@ -2386,6 +2437,7 @@ public class P22_0002_Main {
 						+ "': objectKey=" + objectKey + (objectNummer.isBlank() ? "" : ", objectnummer=" + objectNummer)
 						+ " -> " + e.getMessage());
 				logError(huidigExtractBestand, objectKey, objectNummer, e);
+				logNietVerwerkt(huidigExtractBestand, objectKey, objectNummer, "object", e);
 			}
 		}
 
