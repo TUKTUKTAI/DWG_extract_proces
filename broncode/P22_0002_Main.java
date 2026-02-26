@@ -232,6 +232,18 @@ public class P22_0002_Main {
 	}
 
 	private static void logError(File inputBestand, String objectKey, String objectNummer, Exception e) {
+		String melding = e == null ? "" : (e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()));
+		if (e != null && e.getCause() != null && e.getCause().getMessage() != null) {
+			melding = melding + " | cause=" + e.getCause().getClass().getSimpleName() + ": " + e.getCause().getMessage();
+		}
+		logCsvMelding(inputBestand, objectKey, objectNummer, melding);
+	}
+
+	private static void logWarning(File inputBestand, String objectKey, String objectNummer, String melding) {
+		logCsvMelding(inputBestand, objectKey, objectNummer, "WARNING: " + String.valueOf(melding));
+	}
+
+	private static void logCsvMelding(File inputBestand, String objectKey, String objectNummer, String melding) {
 		try {
 			File doelMap = new File("Doel");
 			if (doelMap.exists() == false) {
@@ -247,10 +259,7 @@ public class P22_0002_Main {
 			String pad = inputBestand == null ? "" : inputBestand.getPath();
 			String objKey = objectKey == null ? "" : objectKey;
 			String objNr = objectNummer == null ? "" : objectNummer;
-			String melding = e == null ? "" : (e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()));
-			if (e != null && e.getCause() != null && e.getCause().getMessage() != null) {
-				melding = melding + " | cause=" + e.getCause().getClass().getSimpleName() + ": " + e.getCause().getMessage();
-			}
+			melding = melding == null ? "" : melding;
 			melding = melding.replace("\r", " ").replace("\n", " ").replace(";", ",");
 			objKey = objKey.replace("\r", " ").replace("\n", " ").replace(";", ",");
 			objNr = objNr.replace("\r", " ").replace("\n", " ").replace(";", ",");
@@ -3466,6 +3475,9 @@ private static void printObjecten() {
 						if (ListA != null) {
 							if(ListA.size()>=7) {
 								System.out.println("rijen>6   "+bestand);
+								String objectNummer = (results != null && results.length > 6 && results[6] != null) ? results[6] : "";
+								logWarning(huidigExtractBestand, bestand, objectNummer,
+										"Meer dan 6 kleur-rijen gedetecteerd (" + keyA + ", count=" + ListA.size() + ")");
 							}
 							if (ListA.size() == 1) {
 								result[45] = (String) ListA.get(0)[2];
@@ -3486,6 +3498,9 @@ private static void printObjecten() {
 						if (ListB != null) {
 							if(ListB.size()>=7) {
 								System.out.println("rijen>6   "+bestand);
+								String objectNummer = (results != null && results.length > 6 && results[6] != null) ? results[6] : "";
+								logWarning(huidigExtractBestand, bestand, objectNummer,
+										"Meer dan 6 kleur-rijen gedetecteerd (" + keyB + ", count=" + ListB.size() + ")");
 							}
 							if (ListB.size() == 1) {
 								result[48] = (String) ListB.get(0)[2];
