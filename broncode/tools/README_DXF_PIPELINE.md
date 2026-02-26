@@ -132,6 +132,24 @@ Voegt alle `Extraheren resultaat ...xlsx` bestanden uit `.\Doel` samen naar 1 be
 python .\broncode\tools\merge_naverwerking_results.py
 ```
 
+## Wrapper (optioneel, 1 script voor handmatig gebruik)
+
+Als je de pipeline handmatig in 1 command wilt draaien (intern nog steeds via DXF):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\broncode\tools\run_dwg_to_excel.ps1"
+```
+
+Met automatische merge op het einde:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\broncode\tools\run_dwg_to_excel.ps1" -MergeAfter
+```
+
+Let op:
+- `-MergeAfter` hoort bij `run_dwg_to_excel.ps1`
+- `run_dxf_pipeline.ps1` ondersteunt **geen** `-MergeAfter` parameter (merge is daar een losse stap)
+
 ## Resultaat (output)
 
 Na stap 1 + 2:
