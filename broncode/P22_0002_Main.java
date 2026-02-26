@@ -43,6 +43,7 @@ public class P22_0002_Main {
 	static String BPScodering;
 	static File doelLocatie;
 	static File[] inputBestandenVoorRun;
+	static File huidigExtractBestand;
 
 	static int SpecsheetRow = 1;
 	static int ObjectRow = 1;
@@ -128,6 +129,7 @@ public class P22_0002_Main {
 	private static void processExtractBestand(File inputBestand) throws IOException {
 		resetRunState();
 		inputBestandenVoorRun = new File[] { inputBestand };
+		huidigExtractBestand = inputBestand;
 
 		File printExcelBlanco = new File("assets" + File.separator + "blanco excels" + File.separator + "blanco resultaat.xlsx");
 		doelLocatie = maakDoelBestand(inputBestand);
@@ -137,6 +139,7 @@ public class P22_0002_Main {
 		Files.copy(originalPath, copied);
 
 		FileOutputStream output_file = null;
+		boolean verwijderOutputBijFout = false;
 		try {
 			fsIP = new FileInputStream(doelLocatie);
 			bIP = new BufferedInputStream(fsIP);
@@ -154,6 +157,12 @@ public class P22_0002_Main {
 
 			output_file = new FileOutputStream(doelLocatie);
 			workbook.write(output_file);
+		} catch (Exception e) {
+			verwijderOutputBijFout = true;
+			if (e instanceof IOException) {
+				throw (IOException) e;
+			}
+			throw new RuntimeException(e);
 		} finally {
 			closeQuietly(output_file);
 			closeQuietly(workbook);
@@ -167,6 +176,10 @@ public class P22_0002_Main {
 			bIP = null;
 			fsIP = null;
 			inputBestandenVoorRun = null;
+			huidigExtractBestand = null;
+			if (verwijderOutputBijFout) {
+				deleteQuietly(doelLocatie);
+			}
 		}
 	}
 
@@ -215,25 +228,67 @@ public class P22_0002_Main {
 	}
 
 	private static void logError(File inputBestand, Exception e) {
+		logError(inputBestand, null, null, e);
+	}
+
+	private static void logError(File inputBestand, String objectKey, String objectNummer, Exception e) {
 		try {
 			File doelMap = new File("Doel");
 			if (doelMap.exists() == false) {
 				doelMap.mkdirs();
 			}
 			Path errorBestand = Paths.get(doelMap.getPath(), "errors.csv");
+			if (Files.exists(errorBestand) == false) {
+				String header = "tijd;bestand;object_key;object_nummer;melding" + System.lineSeparator();
+				Files.write(errorBestand, header.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE,
+						StandardOpenOption.APPEND);
+			}
 			String tijd = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 			String pad = inputBestand == null ? "" : inputBestand.getPath();
+			String objKey = objectKey == null ? "" : objectKey;
+			String objNr = objectNummer == null ? "" : objectNummer;
 			String melding = e == null ? "" : (e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()));
 			if (e != null && e.getCause() != null && e.getCause().getMessage() != null) {
 				melding = melding + " | cause=" + e.getCause().getClass().getSimpleName() + ": " + e.getCause().getMessage();
 			}
 			melding = melding.replace("\r", " ").replace("\n", " ").replace(";", ",");
+			objKey = objKey.replace("\r", " ").replace("\n", " ").replace(";", ",");
+			objNr = objNr.replace("\r", " ").replace("\n", " ").replace(";", ",");
 
-			String regel = tijd + ";" + pad.replace(";", ",") + ";" + melding + System.lineSeparator();
+			String regel = tijd + ";" + pad.replace(";", ",") + ";" + objKey + ";" + objNr + ";" + melding
+					+ System.lineSeparator();
 			Files.write(errorBestand, regel.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE,
 					StandardOpenOption.APPEND);
 		} catch (IOException io) {
 			System.out.println("Kan errors.csv niet schrijven: " + io.getMessage());
+		}
+	}
+
+	private static void deleteQuietly(File file) {
+		if (file != null && file.exists()) {
+			try {
+				file.delete();
+			} catch (Exception e) {
+			}
+		}
+	}
+
+	private static void validateRequiredHeaders(int[] indexes, File extractFile) {
+		String[] requiredNames = new String[] { "File Name", "File Location", "Name", "Position X", "Position Y", "Value",
+				"Layer", "Start X", "Start Y", "End X", "End Y" };
+		int[] requiredIdx = new int[] { 0, 1, 2, 3, 4, 19, 20, 6, 7, 9, 10 };
+
+		ArrayList<String> missing = new ArrayList<String>();
+		for (int i = 0; i < requiredIdx.length; i++) {
+			int idx = requiredIdx[i];
+			if (idx < 0 || idx >= indexes.length || indexes[idx] < 0) {
+				missing.add(requiredNames[i]);
+			}
+		}
+		if (missing.isEmpty() == false) {
+			String naam = extractFile == null ? "" : extractFile.getName();
+			throw new IllegalArgumentException(
+					"Ongeldig extractbestand (verplichte kolommen ontbreken) in " + naam + ": " + String.join(", ", missing));
 		}
 	}
 
@@ -260,8 +315,10 @@ public class P22_0002_Main {
 			klokstanden.clear();
 			System.gc();
 			HashMap.Entry<String, ArrayList<String[]>> pair = (HashMap.Entry) it.next();
+			String objectKey = pair.getKey();
 			ArrayList<String[]> bord = pair.getValue();
 			cnt++;
+			try {
 			
 			// System.out.println(cnt); //pair.getKey()
 			//System.out.println(pair.getKey());
@@ -2311,6 +2368,16 @@ public class P22_0002_Main {
 			
 
 			printResultaat(pair.getKey());
+			} catch (Exception e) {
+				String objectNummer = "";
+				if (results != null && results.length > 6 && results[6] != null) {
+					objectNummer = results[6];
+				}
+				System.out.println("Fout bij object in extract '" + (huidigExtractBestand == null ? "" : huidigExtractBestand.getName())
+						+ "': objectKey=" + objectKey + (objectNummer.isBlank() ? "" : ", objectnummer=" + objectNummer)
+						+ " -> " + e.getMessage());
+				logError(huidigExtractBestand, objectKey, objectNummer, e);
+			}
 		}
 
 	}
@@ -3934,6 +4001,9 @@ private static void printObjecten() {
 			Cell cell;
 
 			int[] Indexes = new int[38];
+			for (int z = 0; z < Indexes.length; z++) {
+				Indexes[z] = -1;
+			}
 
 			try {
 				fsIP = new FileInputStream(fileList[i]);
@@ -3948,9 +4018,11 @@ private static void printObjecten() {
 				sheet = workbook.getSheetAt(0);
 
 				row = sheet.getRow(0);
+				if (row == null) {
+					throw new IllegalArgumentException("Leeg extractbestand of ontbrekende header-rij");
+				}
 				int count = 0;
 				cell = row.getCell(count);
-				Indexes[26] = -1;
 				while (cell != null) {
 					if (cell.getCellType() == CellType.STRING) {
 						if (cell.getStringCellValue().strip().equals("File Name")) {
@@ -4038,6 +4110,8 @@ private static void printObjecten() {
 					cell = row.getCell(count);
 				}
 
+				validateRequiredHeaders(Indexes, fileList[i]);
+
 				int counter = 1;
 				row = sheet.getRow(counter);
 				while (row != null) {
@@ -4091,11 +4165,7 @@ private static void printObjecten() {
 				bIP = null;
 				fsIP = null;
 
-				try {
 				verwerkExtracts();
-				}catch(Exception e) {
-					System.out.println("test 4: "+e.getMessage());
-				}
 				
 				System.gc();
 				
