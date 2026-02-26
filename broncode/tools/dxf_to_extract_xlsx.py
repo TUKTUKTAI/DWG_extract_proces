@@ -373,6 +373,14 @@ def append_niet_verwerkt_csv(csv_path: Path, *, type_value: str, source: str, ob
         ])
 
 
+def has_oda_err_sidecar(dxf_file: Path) -> bool:
+    """ODA batch may create `<name>.dxf.err`; if present, central niet_verwerkt is already logged by ODA step."""
+    try:
+        return dxf_file.with_name(dxf_file.name + ".err").exists()
+    except Exception:
+        return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert DXF files to DataExtract-like .xlsx files.")
     parser.add_argument("--input", required=True, help="DXF file or folder")
@@ -427,7 +435,7 @@ def main() -> int:
                         error=f"{exc.__class__.__name__}: {exc}",
                     ),
                 )
-            if niet_verwerkt_csv:
+            if niet_verwerkt_csv and not has_oda_err_sidecar(dxf_file):
                 append_niet_verwerkt_csv(
                     niet_verwerkt_csv,
                     type_value="dxf_extract",
