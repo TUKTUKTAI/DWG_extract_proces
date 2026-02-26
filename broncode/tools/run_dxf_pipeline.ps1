@@ -5,7 +5,8 @@ param(
     [string]$PythonExe = "python",
     [switch]$RunJavaAfter,
     [switch]$CompileJavaFirst,
-    [switch]$StrictNbdValidation
+    [switch]$StrictNbdValidation,
+    [switch]$MergeAfter
 )
 
 $ErrorActionPreference = "Stop"
@@ -29,6 +30,7 @@ $doel = Join-Path $root "Doel"
 $javaFile = Join-Path $broncode "P22_0002_Main.java"
 $javaCp = ".\broncode;.\broncode\lib\*"
 $errorLog = Join-Path $doel "dxf_extract_errors.csv"
+$mergeScript = Join-Path $broncode "tools\merge_naverwerking_results.py"
 
 if (!(Test-Path $bron)) { New-Item -ItemType Directory -Path $bron | Out-Null }
 if (!(Test-Path $doel)) { New-Item -ItemType Directory -Path $doel | Out-Null }
@@ -85,6 +87,16 @@ try {
         }
         $swJava.Stop()
         Write-Host ("Duur Java naverwerking: {0:00}:{1:00}:{2:00}.{3:000}" -f $swJava.Elapsed.Hours, $swJava.Elapsed.Minutes, $swJava.Elapsed.Seconds, $swJava.Elapsed.Milliseconds)
+    }
+
+    if ($MergeAfter) {
+        $swMerge = [System.Diagnostics.Stopwatch]::StartNew()
+        & $PythonExe $mergeScript
+        if ($LASTEXITCODE -ne 0) {
+            throw "Merge step failed with exit code $LASTEXITCODE"
+        }
+        $swMerge.Stop()
+        Write-Host ("Duur merge naverwerking: {0:00}:{1:00}:{2:00}.{3:000}" -f $swMerge.Elapsed.Hours, $swMerge.Elapsed.Minutes, $swMerge.Elapsed.Seconds, $swMerge.Elapsed.Milliseconds)
     }
 }
 finally {

@@ -124,6 +124,12 @@ Dit script doet:
 powershell -ExecutionPolicy Bypass -File .\broncode\tools\run_dxf_pipeline.ps1
 ```
 
+Met automatische merge op het einde (optioneel):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\broncode\tools\run_dxf_pipeline.ps1 -MergeAfter
+```
+
 ### 3)  merge van alle losse Java-outputbestanden
 
 Voegt alle `Extraheren resultaat ...xlsx` bestanden uit `.\Doel` samen naar 1 bestand in `.\Eindresultaat`.
@@ -147,8 +153,8 @@ powershell -ExecutionPolicy Bypass -File ".\broncode\tools\run_dwg_to_excel.ps1"
 ```
 
 Let op:
-- `-MergeAfter` hoort bij `run_dwg_to_excel.ps1`
-- `run_dxf_pipeline.ps1` ondersteunt **geen** `-MergeAfter` parameter (merge is daar een losse stap)
+- `-MergeAfter` werkt op zowel `run_dwg_to_excel.ps1` als `run_dxf_pipeline.ps1`
+- Voor FME blijft 3 losse stappen meestal het duidelijkst
 
 ## Resultaat (output)
 
@@ -164,6 +170,8 @@ Na stap 3:
 
 - ODA per-file fouten:
   - `.\Doel\oda_per_file_errors.csv`
+- ODA batch `.err` bestanden (door ODA aangemaakte foutbestanden in `DXF`):
+  - `.\Doel\oda_batch_errors.csv`
 - DXF parse / validatie fouten:
   - `.\Doel\dxf_extract_errors.csv`
 - Java naverwerking fouten:
@@ -172,6 +180,11 @@ Na stap 3:
   - `.\Eindresultaat\merge_errors.csv`
 
 Bij fouten in een bestand hoort de batch door te gaan met de rest.
+
+Opmerking:
+- ODA batch-conversie kan naast `.dxf` ook `.err` bestanden in `.\DXF` aanmaken (bij problematische input).
+- Dat verklaart waarom het totaal aantal bestanden in `.\DXF` soms hoger is dan het aantal `.dwg` bestanden.
+- Deze `.err` bestanden worden nu expliciet gemeld en gelogd.
 
 ## Opmerking over validatie
 
