@@ -258,6 +258,9 @@ public class P22_0002_Main {
 			String objKey = objectKey == null ? "" : objectKey;
 			String objNr = objectNummer == null ? "" : objectNummer;
 			String soort = (type == null || type.isBlank()) ? ((objKey.isBlank() && objNr.isBlank()) ? "extract" : "object") : type;
+			if (objNr.isBlank() && soort.equals("extract")) {
+				objNr = deriveObjectNummerFromBestandsnaam(inputBestand);
+			}
 			String reden = buildThrowableMessage(e);
 
 			String regel = sanitizeCsvField(tijd) + ";" + sanitizeCsvField(soort) + ";" + sanitizeCsvField(pad) + ";"
@@ -267,6 +270,19 @@ public class P22_0002_Main {
 		} catch (IOException io) {
 			System.out.println("Kan niet_verwerkt.csv niet schrijven: " + io.getMessage());
 		}
+	}
+
+	private static String deriveObjectNummerFromBestandsnaam(File inputBestand) {
+		if (inputBestand == null) {
+			return "";
+		}
+		String naam = inputBestand.getName();
+		int idx = naam.lastIndexOf('.');
+		if (idx > 0) {
+			naam = naam.substring(0, idx);
+		}
+		// Trim trailing letters (e.g. 04249004S -> 04249004)
+		return naam.replaceAll("([A-Za-z]+)$", "");
 	}
 
 	private static String buildThrowableMessage(Throwable e) {
