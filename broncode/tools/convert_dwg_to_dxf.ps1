@@ -103,6 +103,22 @@ function Get-OdaErrFiles {
     return @($files)
 }
 
+function Get-OdaErrWithoutDxfCount {
+    param(
+        [string]$PathValue,
+        [datetime]$ModifiedSinceUtc = [datetime]::MinValue
+    )
+    $errFiles = Get-OdaErrFiles -PathValue $PathValue -ModifiedSinceUtc $ModifiedSinceUtc
+    $count = 0
+    foreach ($errFile in $errFiles) {
+        $relatedDxf = $errFile.FullName -replace '\.err$',''
+        if (-not (Test-Path $relatedDxf)) {
+            $count++
+        }
+    }
+    return $count
+}
+
 function Write-OdaBatchErrorLog {
     param(
         [string]$CsvPath,
@@ -214,6 +230,7 @@ $exit = $LASTEXITCODE
 
 $dxfCount = 0
 $totalDxfCount = 0
+$errWithoutDxfThisRun = 0
 $stablePolls = 0
 $requiredStablePolls = 4   # 4 * 500ms = ~2s without changes
 $prevSnapshot = $null
@@ -226,6 +243,7 @@ do {
     $totalSnapshot = Get-DxfOutputSnapshot -PathValue $DxfOutput
     $dxfCount = [int]$snapshot.Count
     $totalDxfCount = [int]$totalSnapshot.Count
+    $errWithoutDxfThisRun = Get-OdaErrWithoutDxfCount -PathValue $DxfOutput -ModifiedSinceUtc $runStartUtc
 
     if ($dxfCount -gt 0) {
         if ($null -ne $prevSnapshot -and
@@ -238,7 +256,9 @@ do {
             $stablePolls = 0
         }
 
-        $enoughFiles = ($expectedDwgCount -le 0) -or ($dxfCount -ge $expectedDwgCount)
+        # Stop also when missing DXFs are explained by .err files without matching .dxf.
+        $effectiveProcessed = $dxfCount + $errWithoutDxfThisRun
+        $enoughFiles = ($expectedDwgCount -le 0) -or ($effectiveProcessed -ge $expectedDwgCount)
         if ($enoughFiles -and $stablePolls -ge $requiredStablePolls) {
             break
         }
@@ -246,7 +266,7 @@ do {
 
     if ((Get-Date) -ge $nextProgressLog) {
         if ($expectedDwgCount -gt 0) {
-            Write-Host ("Wachten op ODA... DXF's deze run: {0}/{1} (totaal in map: {2})" -f $dxfCount, $expectedDwgCount, $totalDxfCount)
+            Write-Host ("Wachten op ODA... DXF's deze run: {0}/{1} (+err zonder dxf: {2}, totaal in map: {3})" -f $dxfCount, $expectedDwgCount, $errWithoutDxfThisRun, $totalDxfCount)
         } else {
             Write-Host ("Wachten op ODA... DXF's deze run: {0} (totaal in map: {1})" -f $dxfCount, $totalDxfCount)
         }
@@ -272,7 +292,7 @@ if ($dxfCount -eq 0) {
 }
 
 if ($expectedDwgCount -gt 0 -and $dxfCount -lt $expectedDwgCount) {
-    Write-Warning "Fewer DXF files updated/created in this run than expected DWGs ($dxfCount/$expectedDwgCount). Total DXF files currently in map: $totalDxfCount."
+    Write-Warning "Fewer DXF files updated/created in this run than expected DWGs ($dxfCount/$expectedDwgCount). .err without .dxf in this run: $errWithoutDxfThisRun. Total DXF files currently in map: $totalDxfCount."
 }
 
 $errFilesThisRun = Get-OdaErrFiles -PathValue $DxfOutput -ModifiedSinceUtc $runStartUtc
@@ -293,6 +313,7 @@ if ($errFilesThisRun.Count -gt 0) {
 
 Write-Host "Done. ODA exit code:" $exit
 Write-Host "DXF files this run :" $dxfCount
+Write-Host "ERR without DXF this run:" $errWithoutDxfThisRun
 Write-Host "DXF files in output:" $totalDxfCount
 Write-Host ".err files this run:" $errFilesThisRun.Count
 Write-Host ".err files in output:" $totalErrFiles
